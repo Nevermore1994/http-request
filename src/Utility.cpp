@@ -1,5 +1,5 @@
 //
-// Created by Nevermore on 2024/5/16.
+// Created by Nevermore on 2024/6/16.
 // http-request Utility
 // Copyright (c) 2024 Nevermore All rights reserved.
 //
@@ -18,18 +18,24 @@ std::string& StringUtil::removePrefix(std::string& str, char c) noexcept {
     return str;
 }
 
-///C++ 20 replace ranges
+///skip space, C++ 20 replace ranges
 std::vector<std::string_view> StringUtil::split(std::string_view strView, std::string_view delimiters) noexcept {
     std::vector<std::string_view> tokens;
     size_t start = 0;
     size_t end = 0;
 
     while ((end = strView.find(delimiters, start)) != std::string::npos) {
-        tokens.push_back(strView.substr(start, end - start));
+        auto token = strView.substr(start, end - start);
+        if (!token.empty()) {
+            tokens.push_back(token);
+        }
         start = end + delimiters.length();
     }
     // Add the last token
-    tokens.push_back(strView.substr(start));
+    auto lastToken = strView.substr(start);
+    if (!lastToken.empty()) {
+        tokens.push_back(strView.substr(start));
+    }
 
     return tokens;
 }
@@ -104,5 +110,4 @@ Time::TimeStamp Time::TimeStamp::operator-=(std::chrono::milliseconds delta) noe
     return stamp;
 }
 
-
-}
+}//end of namespace http

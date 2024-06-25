@@ -1,43 +1,16 @@
 //
-// Created by Nevermore on 2024/5/10.
-// http-request Socket
+// Created by Nevermore on 2024/6/17.
+// example Socket
 // Copyright (c) 2024 Nevermore All rights reserved.
 //
 #include "Socket.h"
 
 namespace http {
 
-#if defined(__unix__) && !defined(__APPLE__) && !defined(__CYGWIN__)
-    static constexpr int kNoSignal = MSG_NOSIGNAL;
-#else
-    static constexpr int kNoSignal = 0;
-#endif // defined(__unix__) && !defined(__APPLE__)
-
-#if defined(_WIN32) || defined(__CYGWIN__)
-
-#define RetryCode WSAEINTR
-#define BusyCode WSAEWOULDBLOCK
-#define AgainCode WSAEWOULDBLOCK
-#define SocketError SOCKET_ERROR
-#else
-
-#define RetryCode EINTR
-#define AgainCode EAGAIN
-#define BusyCode EINPROGRESS
-#define SocketError kInvalid
-#endif
-
-constexpr int32_t kDefaultReadSize = 4 * 1024; //4kb
-
-enum class SelectType{
-    Read,
-    Write
-};
-
 #define GetSelectFDSet(type1, type2, FD)  ((type1) == (type2) ? FD : nullptr)
 #define GetSelectReadFDSet(type, FD)  GetSelectFDSet(type, SelectType::Read, FD)
 #define GetSelectWriteFDSet(type, FD)  GetSelectFDSet(type, SelectType::Write, FD)
-SocketResult select(SelectType type, Socket::SocketType socket, int64_t timeout) {
+SocketResult select(SelectType type, Socket socket, int64_t timeout) {
     fd_set fdSet;
     FD_ZERO(&fdSet);
     FD_SET(socket, &fdSet);
@@ -61,31 +34,19 @@ SocketResult select(SelectType type, Socket::SocketType socket, int64_t timeout)
     return result;
 }
 
-Socket::Socket(IPVersion ipVersion)
-    : ipVersion_(ipVersion)
-    , socket_(socket(GetAddressFamily(ipVersion), SOCK_STREAM, IPPROTO_TCP)){
+ISocket::ISocket(IPVersion ipVersion)
+: ipVersion_(ipVersion)
+, socket_(socket(GetAddressFamily(ipVersion), SOCK_STREAM, IPPROTO_TCP)){
 
 }
 
-Socket::~Socket() {
-    close();
-}
-
-Socket::Socket(Socket&& rhs) noexcept
-    : socket_(std::exchange(rhs.socket_, kInvalidSocket)){
+ISocket::ISocket(ISocket&& rhs) noexcept
+: ipVersion_(rhs.ipVersion_)
+, socket_(std::exchange(rhs.socket_, kInvalidSocket)) {
 
 }
 
-Socket& Socket::operator=(Socket&& rhs) noexcept {
-    if (this == &rhs) {
-        return *this;
-    }
-    close();
-    socket_ = std::exchange(rhs.socket_, kInvalidSocket);
-    return *this;
-}
-
-ResultCode Socket::config() noexcept {
+ResultCode ISocket::config() noexcept {
     if (socket_ == kInvalidSocket) {
         return ResultCode::CreateSocketFailed;
     }
@@ -121,7 +82,37 @@ ResultCode Socket::config() noexcept {
     return resultCode;
 }
 
-void Socket::checkConnectResult(SocketResult& result, int64_t timeout) const noexcept {
+ISocket& ISocket::operator=(ISocket&& rhs) noexcept {
+    if (this == &rhs) {
+        return *this;
+    }
+    close();
+    ipVersion_ = rhs.ipVersion_;
+    socket_ = std::exchange(rhs.socket_, kInvalidSocket);
+    return *this;
+}
+
+void ISocket::close() noexcept {
+    if (socket_ == kInvalidSocket) {
+        return;
+    }
+#if defined(_WIN32) || defined(__CYGWIN__)
+    closesocket(socket_);
+#else
+    ::close(socket_);
+#endif
+    socket_ = kInvalidSocket;
+}
+
+SocketResult ISocket::canSend(int64_t timeout) const noexcept {
+    return select(SelectType::Write, socket_, timeout);
+}
+
+SocketResult ISocket::canReceive(int64_t timeout) const noexcept {
+    return select(SelectType::Read, socket_, timeout);;
+}
+
+void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const noexcept {
     using namespace http::util;
     if (result.isSuccess()) {
         return;
@@ -179,7 +170,7 @@ void Socket::checkConnectResult(SocketResult& result, int64_t timeout) const noe
     }
 }
 
-SocketResult Socket::connect(const AddressInfoPtr& address, int64_t timeout) noexcept {
+SocketResult ISocket::connect(const AddressInfoPtr& address, int64_t timeout) noexcept {
     SocketResult result;
     if (address == nullptr) {
         result.resultCode = ResultCode::ConnectAddressError;
@@ -189,7 +180,7 @@ SocketResult Socket::connect(const AddressInfoPtr& address, int64_t timeout) noe
         result.resultCode = ResultCode::ConnectTypeInconsistent;
         return result;
     }
-    result.resultCode = config();
+    result.resultCode = ISocket::config();
     if (!result.isSuccess()) {
         result.errorCode = GetLastError();
         return result;
@@ -206,68 +197,4 @@ SocketResult Socket::connect(const AddressInfoPtr& address, int64_t timeout) noe
     return result;
 }
 
-SocketResult Socket::canSend(int64_t timeout) const noexcept {
-    auto result = select(SelectType::Write, socket_, timeout);
-    return result;
-}
-
-SocketResult Socket::canReceive(int64_t timeout) const noexcept {
-    auto result = select(SelectType::Read, socket_, timeout);
-    return result;
-}
-
-std::tuple<SocketResult, uint64_t> Socket::send(const std::string_view& dataView) const noexcept {
-    ssize_t sendResult = 0;
-    SocketResult result;
-    do {
-        sendResult = ::send(socket_, dataView.data(), dataView.length(), kNoSignal);
-        if (sendResult == SocketError) {
-            result.errorCode = GetLastError();
-        } else {
-            result.errorCode = 0;
-        }
-    } while (result.errorCode == RetryCode);
-
-    if (sendResult == kInvalid) {
-        sendResult = 0;
-        result.resultCode = result.errorCode == RetryCode ? ResultCode::Retry : ResultCode::Failed;
-    }
-    return {result, sendResult};
-}
-
-std::tuple<SocketResult, DataPtr> Socket::receive() const noexcept {
-    SocketResult result;
-    auto data = std::make_unique<Data>(kDefaultReadSize);
-    ssize_t receiveSize = 0;
-    do {
-        receiveSize = ::recv(socket_, data->rawData, data->capacity, kNoSignal);
-        if (receiveSize == kInvalid) {
-            result.errorCode = GetLastError();
-        } else {
-            data->length = static_cast<uint64_t>(receiveSize);
-            result.errorCode = 0;
-        }
-    } while(result.errorCode == RetryCode);
-    if (receiveSize == kInvalid) {
-        result.resultCode = result.errorCode == AgainCode ? ResultCode::Retry : ResultCode::Failed;
-    } else if (data->empty()) {
-        result.resultCode = ResultCode::Disconnected;
-    } else {
-        result.resultCode = ResultCode::Success;
-    }
-    return {result, std::move(data)};
-}
-
-void Socket::close() noexcept {
-    if (socket_ == kInvalidSocket) {
-        return;
-    }
-#if defined(_WIN32) || defined(__CYGWIN__)
-    closesocket(socket_);
-#else
-    ::close(socket_);
-#endif
-    socket_ = kInvalidSocket;
-}
-
-} //end of namespace http
+}//end of namespace http

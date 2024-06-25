@@ -5,12 +5,11 @@
 //
 #include "Request.h"
 #include "Data.hpp"
+#include "TSLSocket.h"
 #include "Type.h"
+#include "PlainSocket.h"
+#include "Url.h"
 #include <cstdint>
-#include <sstream>
-#include <algorithm>
-#include <string>
-#include <string_view>
 #include <utility>
 
 namespace http {
@@ -89,22 +88,33 @@ std::string htmlEncode(RequestInfo& info, const Url& url) noexcept {
         oss << pair.first << ": " << pair.second << "\r\n";
     });
     if (!info.bodyEmpty()) {
+        oss << "\r\n";
         oss << info.body->view();
     }
     oss << "\r\n";
     return oss.str();
 }
+
 }
 
 using namespace std::chrono_literals;
 
-Request::Request(const RequestInfo& info) : info_(info), startStamp_(Time::nowTimeStamp()), reqId_(
-StringUtil::randomString(20)) {
+Request::Request(const RequestInfo& info, const ResponseHandler& responseHandler)
+    : info_(info)
+    , handler_(responseHandler)
+    , startStamp_(Time::nowTimeStamp())
+    , reqId_(StringUtil::randomString(20))
+    , socket_(nullptr, freeSocket)
+    , url_(nullptr, freeUrl) {
     config();
 }
 
-Request::Request(RequestInfo&& info) : info_(std::move(info)), startStamp_(Time::nowTimeStamp()), reqId_(
-StringUtil::randomString(20)) {
+Request::Request(RequestInfo&& info, ResponseHandler&& responseHandler)
+    : info_(std::move(info))
+    , handler_(std::move(responseHandler))
+    , startStamp_(Time::nowTimeStamp())
+    , reqId_(StringUtil::randomString(20)), socket_(nullptr,freeSocket)
+    , url_(nullptr, freeUrl) {
     config();
 }
 
@@ -115,25 +125,6 @@ Request::~Request() {
 }
 
 void Request::config() noexcept {
-    auto handler = [&](ResultCode code) {
-        ResponseHeader response;
-        response.retCode = code;
-        this->responseHeader(std::move(response));
-    };
-    if (info_.methodType == HttpMethodType::Unknown) {
-        handler(ResultCode::MethodError);
-        return;
-    }
-
-    url_ = std::make_unique<Url>(info_.url);
-    if (!url_->isValid()) {
-        handler(ResultCode::UrlInvalid);
-        return;
-    }
-    if (!url_->isHttp()) {
-        handler(ResultCode::SchemeNotSupport);
-        return;
-    }
     worker_ = std::make_unique<std::thread>(&Request::process, this);
 }
 
@@ -141,8 +132,8 @@ void Request::config() noexcept {
 #pragma ide diagnostic ignored "misc-no-recursion"
 
 void Request::sendRequest() noexcept {
-    auto errorHandler = [&](ResultCode code) {
-        this->handleErrorResponse(code, GetLastError());
+    auto errorHandler = [&](ResultCode code, uint32_t errorCode) {
+        this->handleErrorResponse(code, errorCode);
     };
     addrinfo hints{};
     hints.ai_family = GetAddressFamily(info_.ipVersion);
@@ -150,24 +141,36 @@ void Request::sendRequest() noexcept {
     addrinfo* addressInfo = nullptr;
     ResponseHeader responseData;
     if (getaddrinfo(url_->host.data(), url_->port.data(), &hints, &addressInfo) != 0 || addressInfo == nullptr) {
-        errorHandler(ResultCode::GetAddressFailed);
+        errorHandler(ResultCode::GetAddressFailed, 0);
         return;
     }
     auto ipVersion = info_.ipVersion;
     if (ipVersion == IPVersion::Auto) {
         ipVersion = addressInfo->ai_family == AF_INET ? IPVersion::V4 : IPVersion::V6;
     }
-    socket_ = std::make_unique<Socket>(ipVersion);
+    ISocket* socketPtr = nullptr;
+    if (url_->isHttps()) {
+#if ENABLE_HTTPS
+        socketPtr = new TSLSocket(ipVersion);
+#else
+        errorHandler(ResultCode::SchemeNotSupported, 0);
+#endif
+    } else {
+        socketPtr = new PlainSocket(ipVersion);
+    }
+    socket_ = std::unique_ptr<ISocket, decltype(&freeSocket)>(socketPtr, freeSocket);
     auto addressInfoPtr = MakeAddressInfoPtr(addressInfo);
     auto timeout = getRemainTime();
     if (timeout <= 0) {
-        errorHandler(ResultCode::Timeout);
+        errorHandler(ResultCode::Timeout, GetLastError());
         return;
     }
     auto result = socket_->connect(addressInfoPtr, timeout);
     if (!result.isSuccess()) {
-        errorHandler(result.resultCode);
+        errorHandler(result.resultCode, GetLastError());
         return;
+    } else if (handler_.onConnected) {
+        handler_.onConnected(reqId_);
     }
     send();
     receive();
@@ -186,14 +189,31 @@ void Request::redirect(const std::string& url) noexcept {
         errorHandler(ResultCode::RedirectReachMaxCount);
     }
     redirectCount_++;
-    url_ = std::make_unique<Url>(url);
-    if (!url_->isValid() || !url_->isHttp()) {
+    url_ = std::unique_ptr<Url, decltype(&freeUrl)>(new Url(url), freeUrl);
+    if (!url_->isValid() || !url_->isHttpScheme()) {
         return errorHandler(ResultCode::RedirectError);
     }
     sendRequest();
 }
 
 void Request::process() noexcept {
+    auto handler = [&](ResultCode code) {
+        this->handleErrorResponse(code, 0);
+    };
+    if (info_.methodType == HttpMethodType::Unknown) {
+        handler(ResultCode::MethodError);
+        return;
+    }
+
+    url_ = std::unique_ptr<Url, decltype(&freeUrl)>(new Url(info_.url), freeUrl);
+    if (!url_->isValid()) {
+        handler(ResultCode::UrlInvalid);
+        return;
+    }
+    if (!url_->isHttpScheme()) {
+        handler(ResultCode::SchemeNotSupported);
+        return;
+    }
     sendRequest();
 }
 
@@ -203,13 +223,17 @@ void Request::send() noexcept {
         this->handleErrorResponse(canSend.resultCode, canSend.errorCode);
         return;
     }
+    std::this_thread::sleep_for(1ms);
     auto sendData = encode::htmlEncode(info_, *url_);
     auto dataView = std::string_view(sendData);
     do {
-        auto [sendResult, size] = socket_->send(dataView);
-        dataView = dataView.substr(size);
+        auto [sendResult, sendSize] = socket_->send(dataView);
         if (!sendResult.isSuccess()) {
             this->handleErrorResponse(sendResult.resultCode, sendResult.errorCode);
+        } else if (sendSize < dataView.size()) {
+            dataView = dataView.substr(sendSize);
+        } else {
+            break;
         }
     } while (!dataView.empty());
 }
@@ -231,8 +255,7 @@ std::tuple<bool, int64_t> parseResponseHeader(std::string_view data, ResponseHea
     if (auto versionPos = statusView.find(kHTTPFlag); versionPos != std::string_view::npos) {
         ///HTTP-version SP status-code SP reason-phrase CRLF
         response.headers["Version"] = statusView.substr(versionPos, kHTTPFlag.size() + 3);
-        response.httpStatusCode = static_cast<HttpStatusCode>(std::stoi(
-        std::string(statusView.substr(kHTTPFlag.size() + 4, 3))));
+        response.httpStatusCode = static_cast<HttpStatusCode>(std::stoi(std::string(statusView.substr(kHTTPFlag.size() + 4, 3))));
         response.reasonPhrase = statusView.substr(versionPos + kHTTPFlag.size() + 3 + 1 + 3 + 1);
     }
     for (auto& view : headerViews) {
@@ -277,20 +300,12 @@ bool Request::parseChunk(DataPtr& data, int64_t& chunkSize, bool& isCompleted) n
     while (!dataView.empty()) {
         if (chunkSize <= 0) {
             auto pos = dataView.find(kCRLF);
-            if (pos != 0 && chunkSize != kInvalid) {
+            if (pos == std::string_view::npos) {
                 this->handleErrorResponse(ResultCode::ChunkSizeError, 0);
                 res = false;
                 break;
             }
-            if (chunkSize != kInvalid) {
-                dataView = dataView.substr(pos + kCRLF.size());
-            }
-            pos = dataView.find(kCRLF);
-            if (pos == std::string_view::npos) {
-                break;
-            }
-            auto t =  std::string(dataView.substr(0, pos));
-            chunkSize = std::stol(std::string(dataView.substr(0, pos)),  nullptr, 16);
+            chunkSize = std::stol(std::string(dataView.substr(0, pos)), nullptr, 16);
             if (chunkSize == 0) {
                 isCompleted = true;
                 break;
@@ -298,14 +313,19 @@ bool Request::parseChunk(DataPtr& data, int64_t& chunkSize, bool& isCompleted) n
             dataView = dataView.substr(pos + kCRLF.size());
         } else {
             auto size = std::min(static_cast<size_t>(chunkSize), dataView.size());
-            if (info_.responseData) {
-                info_.responseData(reqId_, std::make_unique<Data>(std::string(dataView.substr(0, size))));
-            }
+            responseData(std::make_unique<Data>(std::string(dataView.substr(0, size))));
             dataView = dataView.substr(size);
             chunkSize -= static_cast<int64_t>(size);
         }
+
+        if (dataView.find(kCRLF) == 0) {
+            dataView = dataView.substr(kCRLF.size());
+        }
     }
-    if (res) {
+
+    if (dataView.empty()) {
+        data->destroy();
+    } else {
         data = std::make_unique<Data>(std::string(dataView));
     }
     return res;
@@ -323,8 +343,10 @@ void Request::receive() noexcept {
         if (!isReceivable()) {
             return;
         }
+        std::this_thread::sleep_for(1ms);
         auto [recvResult, dataPtr] = std::move(socket_->receive());
-        bool isCompleted = (recvResult.resultCode == ResultCode::Completed || recvResult.resultCode == ResultCode::Disconnected);
+        bool isCompleted = (recvResult.resultCode == ResultCode::Completed ||
+                            recvResult.resultCode == ResultCode::Disconnected);
         if (!recvResult.isSuccess()) {
             if (recvResult.resultCode == ResultCode::Retry) {
                 continue;
@@ -364,9 +386,7 @@ void Request::receive() noexcept {
         } else {
             isCompleted = isCompleted || recvLength >= contentLength;
             if (parseHeaderSuccess && !dataPtr->empty()){
-                if (info_.responseData) {
-                    info_.responseData(reqId_, std::move(dataPtr));
-                }
+                responseData(std::move(dataPtr));
             }
         }
 
@@ -384,22 +404,28 @@ int64_t Request::getRemainTime() const noexcept {
 }
 
 void Request::handleErrorResponse(ResultCode code, int32_t errorCode) noexcept {
-    ResponseHeader header;
-    header.retCode = code;
-    header.errorCode = errorCode;
-    responseHeader(std::move(header));
+    if (handler_.onError) {
+        handler_.onError(reqId_ , {code, errorCode});
+    }
     disconnected();
 }
 
 void Request::responseHeader(ResponseHeader&& header) noexcept {
-    if (info_.responseHeader) {
-        info_.responseHeader(reqId_, std::move(header));
+    if (isValid_ && handler_.onParseHeaderDone) {
+        handler_.onParseHeaderDone(reqId_, std::move(header));
     }
 }
 
+void Request::responseData(DataPtr dataPtr) noexcept {
+    if (isValid_ && handler_.onParseHeaderDone) {
+        handler_.onData(reqId_, std::move(dataPtr));
+    }
+}
+
+
 void Request::disconnected() noexcept {
-    if (info_.responseHeader) {
-        info_.disconnected(reqId_);
+    if (isValid_ && handler_.onDisconnected) {
+        handler_.onDisconnected(reqId_);
         socket_.reset(); //release resource
     }
 }

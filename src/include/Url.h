@@ -1,5 +1,5 @@
 //
-// Created by Nevermore on 2024/5/14.
+// Created by Nevermore on 2024/6/14.
 // http-request Url
 // Copyright (c) 2024 Nevermore All rights reserved.
 //
@@ -35,7 +35,11 @@ struct Url {
     }
 
     [[nodiscard]] bool isHttpScheme() const noexcept {
+#if ENABLE_HTTPS
         return isHttp() || isHttps();
+#else
+        return isHttp();
+#endif
     };
 
     [[nodiscard]] bool isHttp() const noexcept {
@@ -46,11 +50,14 @@ struct Url {
         return scheme == kHttps;
     }
 
-
 private:
     void parse(const std::string& url) noexcept;
 private:
     bool isValid_ = true;
 };
+
+inline void freeUrl(Url* url) noexcept {
+    delete url;
+}
 
 } //end of namespace http

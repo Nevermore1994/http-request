@@ -2,15 +2,20 @@
 // Created by Nevermore on 2024/5/16.
 // http-request task
 // Copyright (c) 2024 Nevermore All rights reserved.
-//
 #include <thread>
 #include <atomic>
 #include "Data.hpp"
 #include "Type.h"
-#include "../Socket.h"
-#include "../Url.h"
 
 namespace http {
+
+class ISocket;
+
+class Url;
+
+extern void freeSocket(ISocket*) noexcept;
+
+extern void freeUrl(Url*) noexcept;
 
 struct ResponseHeader;
 
@@ -33,26 +38,24 @@ struct RequestInfo {
     [[nodiscard]] inline bool bodyEmpty() const noexcept {
         return !body || body->empty();
     }
+};
 
-    using ResponseHeaderFunc = std::function<void(std::string_view, ResponseHeader&&)>;
-    using ResponseDataFunc = std::function<void(std::string_view, DataPtr data)>;
-    using DisconnectedFunc = std::function<void(std::string_view)>;
+struct ErrorInfo {
+    ResultCode retCode = ResultCode::Success;
+    int32_t errorCode{};
 
-    ResponseHeaderFunc responseHeader = nullptr;
-    ResponseDataFunc responseData = nullptr;
-    DisconnectedFunc disconnected = nullptr;
+    ErrorInfo() = default;
+    ErrorInfo(ResultCode resultCode, int32_t error)
+        : retCode(resultCode)
+        , errorCode(error) {
+
+    }
 };
 
 struct ResponseHeader {
     std::unordered_map<std::string, std::string> headers;
     HttpStatusCode httpStatusCode = HttpStatusCode::Unknown;
-    int32_t errorCode{};
-    ResultCode retCode = ResultCode::Success;
     std::string reasonPhrase;
-
-    [[nodiscard]] bool isSuccess() const noexcept {
-        return retCode == ResultCode::Success;
-    }
 
     [[nodiscard]] bool isNeedRedirect() const noexcept {
         return httpStatusCode == HttpStatusCode::MovedPermanently || httpStatusCode == HttpStatusCode::Found;
@@ -61,10 +64,34 @@ struct ResponseHeader {
     ResponseHeader() = default;
 };
 
+struct ResponseHandler {
+    ///reqId
+    using OnConnectedFunc = std::function<void(std::string_view)>;
+    OnConnectedFunc onConnected = nullptr;
+
+    ///reqId, ResponseHeader
+    using ParseHeaderDoneFunc = std::function<void(std::string_view, ResponseHeader&&)>;
+    ParseHeaderDoneFunc onParseHeaderDone = nullptr;
+
+    ///reqId, data
+    using ResponseDataFunc = std::function<void(std::string_view, DataPtr data)>;
+    ResponseDataFunc onData = nullptr;
+
+    ///reqId
+    using OnDisconnectedFunc = std::function<void(std::string_view)>;
+    OnDisconnectedFunc onDisconnected = nullptr;
+
+    ///reqId, ErrorInfo
+    using OnErrorFunc = std::function<void(std::string_view, ErrorInfo)>;
+    OnErrorFunc onError = nullptr;
+};
+
 class Request {
 public:
-    [[maybe_unused]] explicit  Request(const RequestInfo& info);
-    [[maybe_unused]] explicit Request(RequestInfo&& info);
+    ///Data copying may result in some performance degradation
+    [[maybe_unused]] explicit Request(const RequestInfo&, const ResponseHandler& );
+
+    [[maybe_unused]] explicit Request(RequestInfo&&, ResponseHandler&&);
     ~Request();
 
     [[maybe_unused]] void cancel() noexcept {
@@ -83,8 +110,9 @@ private:
     void send() noexcept;
     bool isReceivable() noexcept;
     void receive() noexcept;
-    void responseHeader(ResponseHeader&&) noexcept;
     bool parseChunk(DataPtr& data, int64_t& chunkSize, bool& isCompleted) noexcept;
+    void responseHeader(ResponseHeader&&) noexcept;
+    void responseData(DataPtr data) noexcept;
     void handleErrorResponse(ResultCode code, int32_t errorCode) noexcept;
     void disconnected() noexcept;
 private:
@@ -92,11 +120,12 @@ private:
     std::atomic<bool> isValid_ = true;
     uint64_t startStamp_ = 0;
     RequestInfo info_;
-    std::unique_ptr<Socket> socket_ = nullptr;
-    std::unique_ptr<Url> url_ = nullptr;
+    ResponseHandler handler_;
+    std::unique_ptr<ISocket, decltype(&freeSocket)> socket_;
+    std::unique_ptr<Url, decltype(&freeUrl)> url_;
     std::unique_ptr<std::thread> worker_ = nullptr;
     std::string reqId_;
 };
 
-}
+}//end of namespace http
 

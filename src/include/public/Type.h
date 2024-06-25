@@ -8,7 +8,8 @@
 
 namespace http {
 
-constexpr int kInvalid = -1;
+constexpr int32_t kInvalid = -1;
+constexpr int32_t kMaxRetryCount = 1000;
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
@@ -132,9 +133,10 @@ enum class ResultCode {
     ConnectTypeInconsistent,
     ConnectGenericError,
     Retry,
+    RetryReachMaxCount,
     Timeout,
     UrlInvalid,
-    SchemeNotSupport,
+    SchemeNotSupported,
     GetAddressFailed,
     MethodError,
     Disconnected,

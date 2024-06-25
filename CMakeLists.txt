@@ -5,12 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(${PROJECT_NAME} example.cpp)
 add_subdirectory(src)
 
-if (NOT DISABLE_HTTPS)
-    message(STATUS "enable https")
-else()
-    message(STATUS "disable https")
-endif ()
-
 if(NOT DISABLE_TEST)
     message(STATUS "enable testing")
     enable_testing()
