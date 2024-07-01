@@ -11,6 +11,8 @@
 #include "Url.h"
 #include <cstdint>
 #include <utility>
+#include <sstream>
+#include <ios>
 
 namespace http {
 
@@ -399,8 +401,8 @@ void Request::receive() noexcept {
 #pragma clang diagnostic pop
 
 int64_t Request::getRemainTime() const noexcept {
-    auto t = (info_.timeout - (Time::nowTimeStamp().diff(startStamp_))).count();
-    return std::max(t, 0ll);
+    auto t = static_cast<int64_t>((info_.timeout - (Time::nowTimeStamp().diff(startStamp_))).count());
+    return std::max<int64_t>(t, 0ll);
 }
 
 void Request::handleErrorResponse(ResultCode code, int32_t errorCode) noexcept {
