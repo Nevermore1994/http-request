@@ -4,6 +4,7 @@
 // Copyright (c) 2024 Nevermore All rights reserved.
 //
 #include "Url.h"
+#include <algorithm>
 
 namespace http {
 

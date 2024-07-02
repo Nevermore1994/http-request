@@ -5,6 +5,7 @@
 //
 #include "Utility.h"
 #include <random>
+#include <algorithm>
 
 namespace http::util {
 

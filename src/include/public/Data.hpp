@@ -101,9 +101,11 @@ struct Data {
         data.rawData = nullptr;
         return *this;
     }
-    
+
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "google-explicit-constructor"
+#endif
     Data(const std::string& str)
         : Data(static_cast<uint64_t>(str.size()), reinterpret_cast<const uint8_t*>(str.data())){
 
@@ -113,7 +115,9 @@ struct Data {
         : Data(static_cast<uint64_t>(str.size()), reinterpret_cast<const uint8_t*>(str.data())) {
 
     }
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
     [[nodiscard]] inline DataPtr copy() const noexcept {
         return this->copy(0, static_cast<int64_t>(length));

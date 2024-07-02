@@ -130,9 +130,10 @@ void Request::config() noexcept {
     worker_ = std::make_unique<std::thread>(&Request::process, this);
 }
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "misc-no-recursion"
-
+#endif
 void Request::sendRequest() noexcept {
     auto errorHandler = [&](ResultCode code, uint32_t errorCode) {
         this->handleErrorResponse(code, errorCode);
@@ -398,7 +399,9 @@ void Request::receive() noexcept {
         }
     }
 }
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
 int64_t Request::getRemainTime() const noexcept {
     auto t = static_cast<int64_t>((info_.timeout - (Time::nowTimeStamp().diff(startStamp_))).count());

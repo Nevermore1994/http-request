@@ -31,12 +31,12 @@ SocketResult PlainSocket::connect(const AddressInfoPtr& address, int64_t timeout
 }
 
 std::tuple<SocketResult, uint64_t> PlainSocket::send(const std::string_view& dataView) const noexcept {
-    ssize_t sendSize = 0;
+    int32_t sendSize = 0;
     SocketResult result;
     int32_t retryCount = 0;
     do {
         retryCount++;
-        sendSize = ::send(socket_, dataView.data(), dataView.length(), kNoSignal);
+        sendSize = static_cast<int32_t>(::send(socket_, dataView.data(), dataView.length(), kNoSignal));
         if (sendSize == SocketError) {
             result.errorCode = GetLastError();
         } else {
@@ -56,11 +56,12 @@ std::tuple<SocketResult, uint64_t> PlainSocket::send(const std::string_view& dat
 std::tuple<SocketResult, DataPtr> PlainSocket::receive() const noexcept {
     SocketResult result;
     auto data = std::make_unique<Data>(kDefaultReadSize);
-    ssize_t receiveSize = 0;
+    int32_t receiveSize = 0;
     int32_t retryCount = 0;
     do {
         retryCount++;
-        receiveSize = ::recv(socket_, data->rawData, data->capacity, kNoSignal);
+        auto dataPtr = reinterpret_cast<char*>(data->rawData);
+        receiveSize = static_cast<int32_t>(::recv(socket_, dataPtr, data->capacity, kNoSignal));
         if (receiveSize == kInvalid) {
             result.errorCode = GetLastError();
         } else {

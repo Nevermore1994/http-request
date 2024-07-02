@@ -6,6 +6,7 @@
 #pragma once
 #include <string>
 #include <chrono>
+#include <vector>
 
 namespace http::util {
 
@@ -23,8 +24,10 @@ struct Time {
     ///microseconds
     struct TimeStamp {
         uint64_t stamp;
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "google-explicit-constructor"
+#endif
         operator uint64_t() const {
             return stamp;
         }
@@ -33,8 +36,9 @@ struct Time {
             : stamp(t) {
 
         }
+#ifdef __clang__
 #pragma clang diagnostic pop
-
+#endif
         [[nodiscard]] std::chrono::milliseconds diff(Time::TimeStamp timeStamp) const noexcept;
         TimeStamp operator+(std::chrono::milliseconds delta) const noexcept;
         TimeStamp operator+=(std::chrono::milliseconds delta) noexcept;

@@ -24,12 +24,16 @@ struct Url {
     std::string query;
     std::string fragment;
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "google-explicit-constructor"
+#endif
     Url(const std::string& url) {
         parse(url);
     }
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif //__clang__
     [[nodiscard]] bool isValid() const noexcept {
         return isValid_;
     }

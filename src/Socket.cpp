@@ -20,8 +20,8 @@ SocketResult select(SelectType type, Socket socket, int64_t timeout) {
     maxFd = 0;
 #endif
     timeval selectTimeout {
-    static_cast<time_t>(timeout / 1000),
-    static_cast<suseconds_t>((timeout % 1000) * 1000)
+    static_cast<int32_t>(timeout / 1000),
+    static_cast<int32_t>((timeout % 1000) * 1000)
     };
     SocketResult result;
     int ret = ::select(maxFd, GetSelectReadFDSet(type, &fdSet), GetSelectWriteFDSet(type, &fdSet), nullptr, timeout >= 0 ? &selectTimeout : nullptr);
@@ -143,11 +143,13 @@ void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const no
         result.errorCode = 0;
         return;
     }
-    auto errorLength = static_cast<socklen_t>(sizeof(int));
+
 #if defined(_WIN32) || defined(__CYGWIN__)
-    char socketError[errorLength];
+    char socketError[sizeof(int)];
+    auto errorLength = sizeof(int);
 #else
     int socketError = 0;
+    auto errorLength = static_cast<socklen_t>(sizeof(int));
 #endif
     if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, &socketError, &errorLength) == SocketError) {
         result.resultCode = ResultCode::ConnectGenericError;

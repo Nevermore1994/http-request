@@ -11,9 +11,10 @@
 
 namespace http {
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "modernize-use-equals-default"
-
+#endif
 SSLManager::SSLManager() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     SSL_library_init();
@@ -29,8 +30,9 @@ SSLManager::~SSLManager() {
 #endif
 }
 
+#ifdef __clang__
 #pragma clang diagnostic pop
-
+#endif
 std::function<void(SSLContextPtr&)> SSLManager::configContext = nullptr;
 
 SSLContextPtr& SSLManager::shareContext() {

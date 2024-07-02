@@ -11,8 +11,10 @@ namespace http {
 constexpr int32_t kInvalid = -1;
 constexpr int32_t kMaxRetryCount = 1000;
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
+#endif
 enum class IPVersion : uint8_t {
     V4,
     V6,
@@ -145,5 +147,7 @@ enum class ResultCode {
     RedirectReachMaxCount,
     ChunkSizeError,
 };
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 } //end of namespace http
