@@ -126,7 +126,25 @@ Request::~Request() {
     }
 }
 
+void Request::init() {
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        std::string errorStr = "WSAStartup error:";
+        errorStr += std::to_string(GetLastError());
+        throw std::runtime_error(errorStr);
+    }
+#endif
+}
+
+void Request::clear() {
+#ifdef _WIN32
+    WSACleanup();
+#endif
+}
+
 void Request::config() noexcept {
+
     worker_ = std::make_unique<std::thread>(&Request::process, this);
 }
 
@@ -134,6 +152,10 @@ void Request::config() noexcept {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "misc-no-recursion"
 #endif
+#ifdef _WIN32
+#pragma comment(lib, "Ws2_32.lib")
+#endif // 
+
 void Request::sendRequest() noexcept {
     auto errorHandler = [&](ResultCode code, uint32_t errorCode) {
         this->handleErrorResponse(code, errorCode);
@@ -144,7 +166,7 @@ void Request::sendRequest() noexcept {
     addrinfo* addressInfo = nullptr;
     ResponseHeader responseData;
     if (getaddrinfo(url_->host.data(), url_->port.data(), &hints, &addressInfo) != 0 || addressInfo == nullptr) {
-        errorHandler(ResultCode::GetAddressFailed, 0);
+        errorHandler(ResultCode::GetAddressFailed, GetLastError());
         return;
     }
     auto ipVersion = info_.ipVersion;

@@ -20,8 +20,8 @@ SocketResult select(SelectType type, Socket socket, int64_t timeout) {
     maxFd = 0;
 #endif
     timeval selectTimeout {
-    static_cast<int32_t>(timeout / 1000),
-    static_cast<int32_t>((timeout % 1000) * 1000)
+        static_cast<int32_t>(timeout / 1000),
+        static_cast<int32_t>((timeout % 1000) * 1000)
     };
     SocketResult result;
     int ret = ::select(maxFd, GetSelectReadFDSet(type, &fdSet), GetSelectWriteFDSet(type, &fdSet), nullptr, timeout >= 0 ? &selectTimeout : nullptr);
@@ -126,10 +126,10 @@ void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const no
         return;
     }
 
-    auto expiredTime = Time::nowTimeStamp() + std::chrono::milliseconds(timeout);
+    auto expiredTime = Time::nowTime() + std::chrono::milliseconds(timeout);
     bool isTimeout = false;
     do {
-        auto remainTime = static_cast<int64_t>(expiredTime - Time::nowTimeStamp());
+        auto remainTime = static_cast<int64_t>((expiredTime - Time::nowTime()).count());
         if (remainTime < 0) {
             isTimeout = true;
             break;
@@ -144,20 +144,20 @@ void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const no
         return;
     }
 
+    int error = 0;
 #if defined(_WIN32) || defined(__CYGWIN__)
     char socketError[sizeof(int)];
-    auto errorLength = sizeof(int);
+    auto errorLength = static_cast<int>(sizeof(int));
 #else
-    int socketError = 0;
+    auto& socketError = error;
     auto errorLength = static_cast<socklen_t>(sizeof(int));
 #endif
-    if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, &socketError, &errorLength) == SocketError) {
+    if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, socketError, &errorLength) == SocketError) {
         result.resultCode = ResultCode::ConnectGenericError;
         result.errorCode = GetLastError();
         return;
     }
 
-    int error = 0;
 #if defined(_WIN32) || defined(__CYGWIN__)
     std::memcpy(&error, socketError, errorLength);
 #else

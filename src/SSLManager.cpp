@@ -8,6 +8,14 @@
 #include "Socket.h"
 #include "Type.h"
 #include <thread>
+#ifdef __cplusplus
+extern "C" {
+#endif // __cpplusplus
+#include <openssl/applink.c>
+#ifdef __cplusplus
+}
+#endif // __cpplusplus
+
 
 namespace http {
 

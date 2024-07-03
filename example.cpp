@@ -14,8 +14,9 @@ std::mutex mutex;
 bool isFinished = false;
 
 int main() {
+    Request::init();
     RequestInfo info;
-    info.url = "https://google.com";
+    info.url = "https://baidu.com";
     info.methodType = HttpMethodType::Get;
     info.headers = {
     {"Content-Type", "application/json"},
@@ -47,7 +48,7 @@ int main() {
         cond.notify_all();
     };
     handler.onError = [](std::string_view reqId, ErrorInfo error) {
-       // std::cout << "reqId:" << reqId << ", retCode:" << static_cast<int>(error.retCode) << ", errorCode:" << error.errorCode;
+        std::cout << "reqId:" << reqId << ", retCode:" << static_cast<int>(error.retCode) << ", errorCode:" << error.errorCode;
     };
 
     Request request(std::move(info), std::move(handler));
@@ -56,5 +57,6 @@ int main() {
     std::unique_lock lock(mutex);
     cond.wait(lock, [&]{ return isFinished; });
     std::cout << "finish:" << length << ", cost time:" << static_cast<double >(util::Time::nowTimeStamp() - startTime) / 1000.0 << std::endl;
+    Request::clear();
     return 0;
 }

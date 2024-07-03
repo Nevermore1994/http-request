@@ -47,9 +47,10 @@ std::string StringUtil::randomString(uint32_t length) noexcept {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, static_cast<int>(kRandomString.size()));
+    std::uniform_int_distribution<> dis(0, static_cast<int>(kRandomString.size()) - 1);
     for (uint32_t i = 0; i < length; i++) {
-        result[i] = kRandomString[static_cast<uint32_t>(dis(gen))];
+        auto x = static_cast<uint32_t>(dis(gen));
+        result[i] = kRandomString[x];
     }
     return result;
 }
@@ -57,13 +58,13 @@ std::string StringUtil::randomString(uint32_t length) noexcept {
 
 void StringUtil::toLower(std::string& str) noexcept {
     std::for_each(str.begin(), str.end(), [](auto& c) {
-        std::tolower(static_cast<unsigned char>(c));
+        c = std::tolower(static_cast<unsigned char>(c));
     });
 }
 
 void StringUtil::toUpper(std::string& str) noexcept {
     std::for_each(str.begin(), str.end(), [](auto& c) {
-        std::toupper(static_cast<unsigned char>(c));
+        c = std::toupper(static_cast<unsigned char>(c));
     });
 }
 
@@ -87,6 +88,12 @@ Time::TimeStamp Time::nowTimeStamp() noexcept {
     using namespace std::chrono;
     auto tp = time_point_cast<microseconds>(system_clock::now());
     return static_cast<TimeStamp>(tp.time_since_epoch().count());
+}
+
+std::chrono::milliseconds Time::nowTime() noexcept {
+    using namespace std::chrono;
+    auto tp = time_point_cast<milliseconds>(system_clock::now());
+    return tp.time_since_epoch();
 }
 
 std::chrono::milliseconds Time::TimeStamp::diff(Time::TimeStamp timeStamp) const noexcept {

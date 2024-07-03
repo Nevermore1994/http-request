@@ -88,6 +88,10 @@ struct ResponseHandler {
 
 class Request {
 public:
+    static void init();
+    static void clear();
+
+public:
     ///Data copying may result in some performance degradation
     [[maybe_unused]] explicit Request(const RequestInfo&, const ResponseHandler& );
 

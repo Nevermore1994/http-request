@@ -46,6 +46,7 @@ struct Time {
         TimeStamp operator-=(std::chrono::milliseconds delta) noexcept;
     };
     static TimeStamp nowTimeStamp() noexcept;
+    static std::chrono::milliseconds nowTime() noexcept;
 };
 
 } // end of namespace http::util
