@@ -149,7 +149,7 @@ void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const no
     char socketError[sizeof(int)];
     auto errorLength = static_cast<int>(sizeof(int));
 #else
-    auto& socketError = error;
+    auto socketError = &error;
     auto errorLength = static_cast<socklen_t>(sizeof(int));
 #endif
     if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, socketError, &errorLength) == SocketError) {
@@ -160,8 +160,6 @@ void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const no
 
 #if defined(_WIN32) || defined(__CYGWIN__)
     std::memcpy(&error, socketError, errorLength);
-#else
-    error = socketError;
 #endif
     if (error != 0) {
         result.resultCode = ResultCode::ConnectGenericError;

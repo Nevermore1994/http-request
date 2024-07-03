@@ -28,6 +28,4 @@ else()
     message(STATUS "disable https")
 endif ()
 
-
 target_link_libraries(${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT})
-

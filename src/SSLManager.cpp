@@ -8,13 +8,15 @@
 #include "Socket.h"
 #include "Type.h"
 #include <thread>
+#ifdef _WIN32
 #ifdef __cplusplus
 extern "C" {
 #endif // __cpplusplus
-#include <openssl/applink.c>
+    #include <openssl/applink.c>
 #ifdef __cplusplus
 }
 #endif // __cpplusplus
+#endif // _WIN32
 
 
 namespace http {

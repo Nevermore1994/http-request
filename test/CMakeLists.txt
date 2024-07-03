@@ -9,7 +9,7 @@ add_executable(http_test ${TEST_FILES} )
 target_link_libraries(http_test
         gtest
         gtest_main
-        pthread
+        ${CMAKE_THREAD_LIBS_INIT}
         http-request
         )
 
