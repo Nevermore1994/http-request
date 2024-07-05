@@ -27,7 +27,7 @@ SocketResult TSLSocket::connect(const AddressInfoPtr& address, int64_t timeout) 
     return result;
 }
 
-std::tuple<SocketResult, uint64_t> TSLSocket::send(const std::string_view& data) const noexcept {
+std::tuple<SocketResult, int64_t> TSLSocket::send(const std::string_view& data) const noexcept {
     SocketResult result;
     if (sslPtr == nullptr) {
         result.resultCode = ResultCode::Failed;

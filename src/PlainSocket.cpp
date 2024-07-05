@@ -30,7 +30,7 @@ SocketResult PlainSocket::connect(const AddressInfoPtr& address, int64_t timeout
     return ISocket::connect(address, timeout);
 }
 
-std::tuple<SocketResult, uint64_t> PlainSocket::send(const std::string_view& dataView) const noexcept {
+std::tuple<SocketResult, int64_t> PlainSocket::send(const std::string_view& dataView) const noexcept {
     int32_t sendSize = 0;
     SocketResult result;
     int32_t retryCount = 0;

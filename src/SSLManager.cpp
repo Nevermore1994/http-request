@@ -83,12 +83,12 @@ SocketResult SSLManager::connect(SSLPtr& sslPtr) noexcept {
     } else if (result < 0) {
         res.resultCode = ResultCode::Failed;
         res.errorCode = SSL_get_error(sslPtr.get(), 0);
-        ERR_print_errors_fp(stderr);
+        ERR_print_errors_fp(stdout);
     }
     return res;
 }
 
-std::tuple<SocketResult, uint64_t> SSLManager::write(const SSLPtr& sslPtr, const std::string_view& data) noexcept {
+std::tuple<SocketResult, int64_t> SSLManager::write(const SSLPtr& sslPtr, const std::string_view& data) noexcept {
     using namespace std::chrono_literals;
     SocketResult res;
     if (sslPtr == nullptr) {

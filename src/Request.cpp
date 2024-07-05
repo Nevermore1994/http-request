@@ -18,7 +18,7 @@ namespace http {
 
 using namespace http::util;
 
-constexpr const char* kMethodNameArray[] = {"Unknown", "GET", "POST", "PUT", "PATCH", "DELETE"};
+constexpr const char* kMethodNameArray[] = {"Unknown", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"};
 
 std::string getMethodName(HttpMethodType type) {
     return kMethodNameArray[static_cast<int>(type)];
@@ -78,7 +78,9 @@ std::string base64Encode(const std::string& str) {
 
 std::string htmlEncode(RequestInfo& info, const Url& url) noexcept {
     auto& headers = info.headers;
-    headers["Content-Length"] = std::to_string(info.bodySize());
+    if (!info.bodyEmpty()) {
+        headers["Content-Length"] = std::to_string(info.bodySize());
+    }
     headers["Host"] = url.host;
     if (headers.count("Authorization") == 0 && !url.userInfo.empty()) {
         headers["Authorization"] = std::string("Basic ") + base64Encode(url.userInfo);
@@ -126,15 +128,14 @@ Request::~Request() {
     }
 }
 
-void Request::init() {
+bool Request::init() {
 #ifdef _WIN32
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        std::string errorStr = "WSAStartup error:";
-        errorStr += std::to_string(GetLastError());
-        throw std::runtime_error(errorStr);
+        return false;
     }
 #endif
+    return true;
 }
 
 void Request::clear() {
@@ -154,10 +155,10 @@ void Request::config() noexcept {
 #endif
 #ifdef _WIN32
 #pragma comment(lib, "Ws2_32.lib")
-#endif // 
+#endif //end _WIN32
 
 void Request::sendRequest() noexcept {
-    auto errorHandler = [&](ResultCode code, uint32_t errorCode) {
+    auto errorHandler = [&](ResultCode code, int32_t errorCode) {
         this->handleErrorResponse(code, errorCode);
     };
     addrinfo hints{};
@@ -197,7 +198,9 @@ void Request::sendRequest() noexcept {
     } else if (handler_.onConnected) {
         handler_.onConnected(reqId_);
     }
-    send();
+    if (!send()) {
+        return;
+    }
     receive();
 }
 
@@ -242,11 +245,11 @@ void Request::process() noexcept {
     sendRequest();
 }
 
-void Request::send() noexcept {
+bool Request::send() noexcept {
     auto canSend = socket_->canSend(getRemainTime());
     if (!canSend.isSuccess()) {
         this->handleErrorResponse(canSend.resultCode, canSend.errorCode);
-        return;
+        return false;
     }
     std::this_thread::sleep_for(1ms);
     auto sendData = encode::htmlEncode(info_, *url_);
@@ -255,12 +258,14 @@ void Request::send() noexcept {
         auto [sendResult, sendSize] = socket_->send(dataView);
         if (!sendResult.isSuccess()) {
             this->handleErrorResponse(sendResult.resultCode, sendResult.errorCode);
+            return false;
         } else if (sendSize < dataView.size()) {
             dataView = dataView.substr(sendSize);
         } else {
             break;
         }
     } while (!dataView.empty());
+    return true;
 }
 
 std::tuple<bool, int64_t> parseResponseHeader(std::string_view data, ResponseHeader& response) {
@@ -444,7 +449,7 @@ void Request::responseHeader(ResponseHeader&& header) noexcept {
 }
 
 void Request::responseData(DataPtr dataPtr) noexcept {
-    if (isValid_ && handler_.onParseHeaderDone) {
+    if (isValid_ && handler_.onData) {
         handler_.onData(reqId_, std::move(dataPtr));
     }
 }

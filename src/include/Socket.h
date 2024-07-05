@@ -114,7 +114,7 @@ public:
     virtual SocketResult connect(const AddressInfoPtr& address, int64_t timeout) noexcept;
 
     ///return ResultCode and the number of bytes sent successfully
-    [[nodiscard]] virtual std::tuple<SocketResult, uint64_t> send(const std::string_view& data) const noexcept = 0;
+    [[nodiscard]] virtual std::tuple<SocketResult, int64_t> send(const std::string_view& data) const noexcept = 0;
 
     ///return ResultCode and the received data
     [[nodiscard]] virtual std::tuple<SocketResult, DataPtr> receive() const noexcept = 0;

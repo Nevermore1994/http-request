@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(${PROJECT_NAME} example.cpp)
 add_subdirectory(src)
 
-option(DISABLE_TEST "disable tests" ON)
+option(DISABLE_TEST "disable tests" OFF)
 
 if(NOT DISABLE_TEST)
     message(STATUS "enable testing")

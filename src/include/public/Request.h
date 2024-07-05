@@ -88,7 +88,7 @@ struct ResponseHandler {
 
 class Request {
 public:
-    static void init();
+    static bool init();
     static void clear();
 
 public:
@@ -111,7 +111,7 @@ private:
     void redirect(const std::string&) noexcept;
     void process() noexcept;
     int64_t getRemainTime() const noexcept;
-    void send() noexcept;
+    bool send() noexcept;
     bool isReceivable() noexcept;
     void receive() noexcept;
     bool parseChunk(DataPtr& data, int64_t& chunkSize, bool& isCompleted) noexcept;

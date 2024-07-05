@@ -24,7 +24,7 @@ public:
 
     static SSLPtr create(Socket) noexcept;
     static SocketResult connect(SSLPtr&) noexcept;
-    [[nodiscard]] static std::tuple<SocketResult, uint64_t> write(const SSLPtr&, const std::string_view&) noexcept;
+    [[nodiscard]] static std::tuple<SocketResult, int64_t> write(const SSLPtr&, const std::string_view&) noexcept;
     [[nodiscard]] static std::tuple<SocketResult, DataPtr> read(const SSLPtr&) noexcept;
     static void close(SSLPtr&) noexcept;
 private:

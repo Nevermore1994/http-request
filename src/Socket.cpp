@@ -109,7 +109,7 @@ SocketResult ISocket::canSend(int64_t timeout) const noexcept {
 }
 
 SocketResult ISocket::canReceive(int64_t timeout) const noexcept {
-    return select(SelectType::Read, socket_, timeout);;
+    return select(SelectType::Read, socket_, timeout);
 }
 
 void ISocket::checkConnectResult(SocketResult& result, int64_t timeout) const noexcept {

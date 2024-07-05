@@ -28,6 +28,7 @@ enum class HttpMethodType : uint8_t {
     Put = 3,
     Patch = 4,
     Delete = 5,
+    Options = 6,
 };
 
 enum class HttpStatusCode : uint16_t {

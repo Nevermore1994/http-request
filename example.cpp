@@ -16,11 +16,11 @@ bool isFinished = false;
 int main() {
     Request::init();
     RequestInfo info;
-    info.url = "https://baidu.com";
+    info.url = "https://httpbin.org/get";
     info.methodType = HttpMethodType::Get;
     info.headers = {
     {"Content-Type", "application/json"},
-    {"User-Agent",    "runscope/0.1"},
+    {"User-Agent",    "curl/8.6.0"},
     {"Accept",        "*/*"}};
 
     int length = 0;

@@ -20,7 +20,7 @@ public:
 
     SocketResult connect(const AddressInfoPtr& address, int64_t timeout) noexcept override;
 
-    [[nodiscard]] std::tuple<SocketResult, uint64_t> send(const std::string_view& data) const noexcept override;
+    [[nodiscard]] std::tuple<SocketResult, int64_t> send(const std::string_view& data) const noexcept override;
 
     [[nodiscard]] std::tuple<SocketResult, DataPtr> receive() const noexcept override;
 
