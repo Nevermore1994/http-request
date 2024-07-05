@@ -2,6 +2,8 @@
 // Created by Nevermore on 2024/5/16.
 // http-request task
 // Copyright (c) 2024 Nevermore All rights reserved.
+#pragma once
+
 #include <thread>
 #include <atomic>
 #include "Data.hpp"

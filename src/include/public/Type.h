@@ -4,6 +4,7 @@
 // Copyright (c) 2024 Nevermore All rights reserved.
 //
 #pragma once
+
 #include <cstdint>
 
 namespace http {

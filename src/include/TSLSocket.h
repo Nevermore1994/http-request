@@ -5,6 +5,7 @@
 //
 
 #pragma once
+
 #if ENABLE_HTTPS
 #include "Socket.h"
 #include "SSLManager.h"

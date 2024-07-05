@@ -165,6 +165,7 @@ Request::clear(); //Must be callable on Windows.
 ##### 7. example
 [example.cpp](example.cpp)
 
+**If you prefer not to use HTTPS, set DISABLE_HTTPS to ON in the [CMake file](src/CMakeLists.txt).**
 ### Contributing
 Feel free to contribute by opening issues or submitting pull requests. Please follow the code of conduct.
 
