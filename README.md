@@ -6,8 +6,8 @@ This repository provides a framework for handling HTTP requests and responses. I
 ### Features
 
     • Cross-Platform: This framework is designed to be cross-platform, allowing you to use it on various operating systems.
-	• Modern C++: Requires C++17 or above, leveraging modern C++ features for better performance and readability.
-	• Flexible and Extensible: Easily extend and customize the request and response handling to fit your needs.
+    • Modern C++: Requires C++17 or above, leveraging modern C++ features for better performance and readability.
+    • Flexible and Extensible: Easily extend and customize the request and response handling to fit your needs.
     • HTTPS Support: Supports HTTPS for secure communication.
     • Thread-Safe: Designed to be thread-safe for concurrent use.
 
@@ -26,7 +26,7 @@ struct RequestInfo {
     /// The URL to which the request is made.
     std::string url;
 
-    /// The HTTP method type (GET, POST, etc.). Default is HttpMethodType::Unknown.
+    /// The HTTP method type (Get, Post, etc.). Default is HttpMethodType::Unknown.
     HttpMethodType methodType = HttpMethodType::Unknown;
 
     /// A map of HTTP headers to include in the request.
@@ -35,16 +35,8 @@ struct RequestInfo {
     /// The body of the request. Default is nullptr.
     DataRefPtr body = nullptr;
 
-    /// The timeout duration for the request. Default is 30 seconds.
+    /// The timeout duration for the request. Default is 60 seconds.
     std::chrono::milliseconds timeout{60 * 1000};
-
-    [[nodiscard]] inline uint64_t bodySize() const noexcept {
-        return body ? body->length : 0;
-    }
-
-    [[nodiscard]] inline bool bodyEmpty() const noexcept {
-        return !body || body->empty();
-    }
 };
 ```
 
@@ -57,12 +49,6 @@ struct ErrorInfo {
 
     /// The error code, system error code
     int32_t errorCode{};
-
-    ErrorInfo() = default;
-    ErrorInfo(ResultCode resultCode, int32_t error)
-        : retCode(resultCode)
-        , errorCode(error) {
-    }
 };
 ```
 
@@ -78,12 +64,6 @@ struct ResponseHeader {
 
     /// The reason phrase associated with the status code.
     std::string reasonPhrase;
-
-    [[nodiscard]] bool isNeedRedirect() const noexcept {
-        return httpStatusCode == HttpStatusCode::MovedPermanently || httpStatusCode == HttpStatusCode::Found;
-    }
-
-    ResponseHeader() = default;
 };
 ```
 
@@ -147,7 +127,7 @@ public:
 ### Usage
 ##### 1.	Initialize the request framework:
 ```c++
-Request::init();
+Request::init(); //Must be callable on Windows.
 ```
 
 ##### 2. Create a RequestInfo object:
@@ -179,7 +159,7 @@ request.cancel();
 
 ##### 6.Clear the request framework when done:
 ```c++
-Request::clear();
+Request::clear(); //Must be callable on Windows.
 ```
 
 ##### 7. example
