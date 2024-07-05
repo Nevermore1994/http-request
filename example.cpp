@@ -15,6 +15,11 @@ bool isFinished = false;
 
 int main() {
     Request::init();
+#if ENABLE_HTTPS
+    HttpsHelper::configContext = [](SSLContextPtr& ptr) {
+        //Configure your SSL context if needed
+    };
+#endif
     RequestInfo info;
     info.url = "https://httpbin.org/get";
     info.methodType = HttpMethodType::Get;

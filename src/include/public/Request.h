@@ -9,6 +9,10 @@
 #include "Data.hpp"
 #include "Type.h"
 
+#if ENABLE_HTTPS
+#include "HttpsHelper.h"
+#endif
+
 namespace http {
 
 class ISocket;

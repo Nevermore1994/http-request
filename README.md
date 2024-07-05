@@ -128,6 +128,9 @@ public:
 ##### 1.	Initialize the request framework:
 ```c++
 Request::init(); //Must be callable on Windows.
+HttpsHelper::configContext = [](SSLContextPtr& ptr) {
+ /* Configure your SSL context if needed */ 
+};
 ```
 
 ##### 2. Create a RequestInfo object:
@@ -165,7 +168,15 @@ Request::clear(); //Must be callable on Windows.
 ##### 7. example
 [example.cpp](example.cpp)
 
-**If you prefer not to use HTTPS, set DISABLE_HTTPS to ON in the [CMake file](src/CMakeLists.txt).**
+### Notes
+
+* **If you prefer not to use HTTPS, set DISABLE_HTTPS to ON in the [CMake file](src/CMakeLists.txt).**
+
+
+* **If you are using Windows, please remember to call `Request::init()` before making a request, 
+and ensure that the system variables `OPENSSL_ROOT_DIR`, `OPENSSL_INCLUDE_DIR`, and `OPENSSL_CRYPTO_LIBRARY` are set.**
+
+
 ### Contributing
 Feel free to contribute by opening issues or submitting pull requests. Please follow the code of conduct.
 

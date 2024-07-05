@@ -25,6 +25,7 @@ namespace http {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "modernize-use-equals-default"
 #endif
+
 SSLManager::SSLManager() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     SSL_library_init();
@@ -43,7 +44,8 @@ SSLManager::~SSLManager() {
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-std::function<void(SSLContextPtr&)> SSLManager::configContext = nullptr;
+
+std::function<void(SSLContextPtr&)> HttpsHelper::configContext = nullptr;
 
 SSLContextPtr& SSLManager::shareContext() {
     static std::once_flag flag;
@@ -54,8 +56,8 @@ SSLContextPtr& SSLManager::shareContext() {
         SSL_CTX* context = SSL_CTX_new(sslMethod);
         if (context) {
             contextPtr.reset(context);
-            if (configContext) {
-                configContext(contextPtr);
+            if (HttpsHelper::configContext) {
+                HttpsHelper::configContext(contextPtr);
             }
         } else {
             throw std::runtime_error("create SSL Context error.");

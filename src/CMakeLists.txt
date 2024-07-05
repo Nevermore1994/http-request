@@ -21,7 +21,7 @@ option(DISABLE_HTTPS "disable https" OFF)
 
 if (NOT DISABLE_HTTPS)
     message(STATUS "enable https")
-    add_definitions(-DENABLE_HTTPS)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC ENABLE_HTTPS)
     find_package(OpenSSL REQUIRED)
     target_link_libraries(${PROJECT_NAME} OpenSSL::SSL OpenSSL::Crypto)
 else()

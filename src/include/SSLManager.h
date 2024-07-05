@@ -7,19 +7,15 @@
 
 #if ENABLE_HTTPS
 #include <mutex>
-#include <openssl/ssl.h>
 #include <openssl/err.h>
 
 #include "PlainSocket.h"
+#include "HttpsHelper.h"
 
 namespace http {
 
-using SSLPtr = std::unique_ptr<SSL, decltype(&SSL_free)>;
-using SSLContextPtr = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
-
 class SSLManager {
 public:
-    static std::function<void(SSLContextPtr&)> configContext;
     static SSLContextPtr& shareContext();
 
     static SSLPtr create(Socket) noexcept;
