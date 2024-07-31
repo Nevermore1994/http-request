@@ -48,6 +48,7 @@ std::tuple<SocketResult, DataPtr> TSLSocket::receive() const noexcept {
 void TSLSocket::close() noexcept {
     SSLManager::close(sslPtr);
     ISocket::close();
+    sslPtr.reset();
 }
 
 SocketResult TSLSocket::canSend(int64_t timeout) const noexcept {
